@@ -6,10 +6,10 @@ extern crate byteorder;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::net::{TcpListener, TcpStream};
 use std::thread;
-use std::io::{Read, Write, Error};
+use std::io::{Read, Write};
 
 struct PixelFormat {
-	  bpp: u8,
+    bpp: u8,
     depth: u8,
     big_endian: u8,
     true_colour: u8,
