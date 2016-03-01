@@ -39,11 +39,11 @@ fn handle_client(mut stream: TcpStream) {
         1 => {
             println!("No auth will be used for connection.");
             // tell the client the security handshake was successful
-            stream.write_u32::<BigEndian>(0);
+            stream.write_u32::<BigEndian>(0).unwrap();
         }
         _ => {
-            stream.write(&[18]);
-            stream.write(b"Connection failed\n");
+            stream.write(&[18]).unwrap();
+            stream.write(b"Connection failed\n").unwrap();
             panic!("Connection failed in security type!");
         }
     }
