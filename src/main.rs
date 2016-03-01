@@ -55,7 +55,8 @@ fn handle_client(mut stream: TcpStream) {
         1 => println!("Shared Flag: Leave other clients connected."),
         _ => panic!("Unknown shared flag returned: {}", shared_flag)
     }
-// server init
+
+    // server init
     let format = PixelFormat {
         bpp:        16,
         depth:      16,
@@ -66,7 +67,7 @@ fn handle_client(mut stream: TcpStream) {
         blue_max:    0x1f,
         red_shift:   0xa,
         green_shift: 0x5,
-		    blue_shift:  0,
+        blue_shift:  0,
     };
 
     let width : u16 = 800;
