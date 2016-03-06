@@ -5,5 +5,7 @@ authors = ["John Johnson <john@johnjohnson.cc>"]
 
 [dependencies]
 byteorder = "0.4"
+bytes = "0.3.0"
+mio = "0.5"
 log = "0.3"
 env_logger = "0.3"

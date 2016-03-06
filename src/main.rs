@@ -1,12 +1,23 @@
 #[macro_use]
 extern crate log;
 extern crate env_logger;
+
 extern crate byteorder;
+extern crate mio;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use std::net::{TcpListener, TcpStream};
 use std::thread;
-use std::io::{Read, Write};
+use std::io::{Read, Write, Error, ErrorKind};
+use std::net::SocketAddr;
+use std::str::FromStr;
+
+use mio::*;
+use mio::tcp::*;
+use mio::util::Slab;
+
+mod server;
+
+pub use server::{Server};
 
 struct PixelFormat {
     bpp: u8,
@@ -60,7 +71,7 @@ fn handle_client(mut stream: TcpStream) {
     let format = PixelFormat {
         bpp:        16,
         depth:      16,
-        big_endian:  0,
+        big_endian:  1,
         true_colour: 1,
         red_max:     0x1f,
         green_max:   0x1f,
@@ -107,21 +118,35 @@ fn handle_client(mut stream: TcpStream) {
 }
 
 fn main() {
-    let listener = TcpListener::bind("127.0.0.1:8000").unwrap();
+    env_logger::init().ok().expect("Failed to init logger!");
 
-    // accept connections and process them, spawning a new thread for each one
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                thread::spawn(move|| {
-                    // connection succeeded
-                    handle_client(stream)
-                });
-            }
-            Err(e) => { panic!("Error: {}", e) }
-        }
-    }
+    let addr: SocketAddr = FromStr::from_str("127.0.0.1:8000")
+        .ok().expect("Failed to parse host:port string");
+    let sock = TcpListener::bind(&addr).ok().expect("Failed to bind address");
 
-    // close the socket server
-    drop(listener);
+    let mut event_loop = EventLoop::new().ok().expect("Failed to create event loop.");
+
+    let mut server = Server::new(sock);
+    server.register(&mut event_loop).ok().expect("Failed to register server with event loop.");
+
+    info!("Event loop starting...");
+    event_loop.run(&mut server).ok().expect("Failed to start event loop.");
+
+    // let listener = TcpListener::bind("127.0.0.1:8000").ok().expect("Failed to bind to TCP address!");
+
+    // // accept connections and process them, spawning a new thread for each one
+    // for stream in listener.incoming() {
+    //     match stream {
+    //         Ok(stream) => {
+    //             thread::spawn(move|| {
+    //                 // connection succeeded
+    //                 handle_client(stream)
+    //             });
+    //         }
+    //         Err(e) => { panic!("Error: {}", e) }
+    //     }
+    // }
+
+    // // close the socket server
+    // drop(listener);
 }
