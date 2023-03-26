@@ -1,8 +1,10 @@
+#![warn(clippy::all, clippy::pedantic)]
 use log::{debug, error, info};
 use rfb::{ScreenShot, ServerInit};
 use scrap::{Capturer, Display};
 use std::io::ErrorKind::WouldBlock;
 use std::thread;
+use std::convert::TryFrom;
 use std::time::Duration;
 use std::{error::Error, net::SocketAddr};
 use tokio::{
@@ -38,15 +40,14 @@ fn get_screen_frame() -> ScreenShot {
                     // Keep spinning.
                     thread::sleep(one_frame);
                     continue;
-                } else {
-                    panic!("Error: {error}");
                 }
+                panic!("Error: {error}");
             }
         };
 
         return ScreenShot {
-            width: w as u16,
-            height: h as u16,
+            width: u16::try_from(w).unwrap(),
+            height: u16::try_from(h).unwrap(),
             data: buffer.to_owned(),
         };
     }
@@ -62,9 +63,10 @@ async fn process_socket(mut socket: TcpStream, addr: SocketAddr) -> Result<(), B
     let mut buf = [0u8; 12];
     socket.read_exact(&mut buf).await?;
 
-    match &buf {
-        b"RFB 003.008\n" => debug!("Got version 3.8 from client!"),
-        _ => error!("Unable to read version from client"),
+    if let b"RFB 003.008\n" = &buf {
+        debug!("Got version 3.8 from client!");
+    } else {
+        error!("Unable to read version from client");
     }
 
     // write security handshake data to client - first write is length of content,
@@ -73,8 +75,7 @@ async fn process_socket(mut socket: TcpStream, addr: SocketAddr) -> Result<(), B
     socket.write_u8(1).await?;
 
     // read accepted security type response from client
-    let res = socket.read_u8().await;
-    match res {
+    match socket.read_u8().await {
         Ok(1) => debug!("SecurityType::None"),
         Ok(2) => debug!("SecurityType::VncAuthentication"),
         _ => debug!("ProtocolError::InvalidSecurityType"),
@@ -84,8 +85,7 @@ async fn process_socket(mut socket: TcpStream, addr: SocketAddr) -> Result<(), B
     socket.write_u32(0).await?;
 
     // client init message
-    let client_init = socket.read_u8().await;
-    match client_init {
+    match socket.read_u8().await {
         Ok(msg) => debug!("client init = {}", msg),
         Err(e) => error!("Unable to get client init message {}", e),
     }
@@ -106,11 +106,7 @@ async fn process_socket(mut socket: TcpStream, addr: SocketAddr) -> Result<(), B
         .await?;
     socket.write_u8(server_init.pixel_format.depth).await?;
     socket
-        .write_u8(if server_init.pixel_format.big_endian {
-            1
-        } else {
-            0
-        })
+        .write_u8(u8::from(server_init.pixel_format.big_endian))
         .await?;
 
     // color format stuff from pixel format
@@ -131,7 +127,7 @@ async fn process_socket(mut socket: TcpStream, addr: SocketAddr) -> Result<(), B
     let buf = [0u8; 3];
     socket.write_all(&buf).await?;
 
-    socket.write_u32(server_init.name.len() as u32).await?;
+    socket.write_u32(u32::try_from(server_init.name.len()).unwrap()).await?;
     socket.write_all(server_init.name.as_bytes()).await?;
 
     loop {
@@ -172,7 +168,7 @@ async fn process_socket(mut socket: TcpStream, addr: SocketAddr) -> Result<(), B
                     debug!("PointerEvent");
                 }
                 6 => {
-                    debug!("ClientCutText")
+                    debug!("ClientCutText");
                 }
                 unknown => debug!("unkown message {}", unknown),
             },
